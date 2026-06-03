@@ -73,8 +73,8 @@ def generate_launch_description():
 
     depth_topic_arg = DeclareLaunchArgument(
         'depth_topic',
-        default_value='/camera/camera/depth/image_rect_raw',
-        description='Depth aligned ke RGB')
+        default_value='/camera/camera/aligned_depth_to_color/image_raw',
+        description='Depth aligned ke RGB (dari align_depth.enable=True)')
 
     camera_info_topic_arg = DeclareLaunchArgument(
         'camera_info_topic',

@@ -29,7 +29,7 @@ rtabmap_slam:
     subscribe_depth: false         # SYNC mode: pakai rgbd_image
     subscribe_rgbd:  true
     subscribe_scan:  true
-    subscribe_odom_info: false
+    subscribe_odom_info: true
     approx_sync: true
     approx_sync_max_interval: 0.05
     queue_size: 30
@@ -53,7 +53,7 @@ rtabmap_slam:
     # ---- Registration strategy ----
     # Strategy 2 = Vis+ICP: visual features untuk initial estimate,
     # ICP LiDAR untuk fine correction (paling robust indoor)
-    Reg/Strategy: "2"
+    Reg/Strategy: "1"
     Reg/Force3DoF: "true"          # 2D floor: x, y, yaw saja
 
     # ICP params (LiDAR fine correction)
@@ -68,14 +68,14 @@ rtabmap_slam:
     # ---- Visual features (loop closure + initial registration) ----
     Vis/FeatureType: "8"            # GFTT/BRIEF (light)
     Vis/MaxFeatures: "1000"
-    Vis/MinInliers: "5"
+    Vis/MinInliers: "10"
 
     # ---- Local map / occupancy grid ----
-    Grid/FromDepth: "true"
+    Grid/FromDepth: "false"
     Grid/RangeMax: "5.0"
     Grid/CellSize: "0.05"           # resolusi 5cm, match Nav2
     Grid/RayTracing: "true"
-    Grid/3D: "true"
+    Grid/3D: "false"
     Grid/NormalsSegmentation: "false"
     Grid/MaxObstacleHeight: "1.5"
     Grid/MaxGroundHeight: "0.05"
@@ -141,7 +141,7 @@ rgbd_odometry:
 # =================================================================
 rgbd_sync:
   ros__parameters:
-    approx_sync: true
+    approx_sync: false
     approx_sync_max_interval: 0.03  # 30ms toleransi depth-color sync
     queue_size: 30
     depth_scale: 1.0

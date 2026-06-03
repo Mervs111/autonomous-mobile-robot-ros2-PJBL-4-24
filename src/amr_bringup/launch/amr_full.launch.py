@@ -143,7 +143,7 @@ def generate_launch_description():
             'pulses_per_revolution': 1496,
             'encoder_period':       0.05,
             'publish_rate':         50.0,
-            'publish_tf':           True,
+            'publish_tf':           False,
         }],
     )
 
