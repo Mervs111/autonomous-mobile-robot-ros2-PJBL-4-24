@@ -54,8 +54,8 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
 
     use_slam_arg = DeclareLaunchArgument(
-        'use_slam', default_value='true',
-        description='Enable SLAM Toolbox')
+        'use_slam', default_value='false',
+        description='Enable SLAM Toolbox (set false saat pakai RTAB-Map — keduanya publish map->odom TF)')
     slam_mode_arg = DeclareLaunchArgument(
         'slam_mode', default_value='mapping',
         description="'mapping' atau 'localization'")
