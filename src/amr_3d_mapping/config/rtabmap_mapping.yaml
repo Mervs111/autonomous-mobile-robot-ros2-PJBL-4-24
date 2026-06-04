@@ -29,7 +29,7 @@ rtabmap_slam:
     subscribe_depth: false         # SYNC mode: pakai rgbd_image
     subscribe_rgbd:  true
     subscribe_scan:  true
-    subscribe_odom_info: true
+    subscribe_odom_info: false     # FIX: odom_info tidak di-remap di launch → sync stuck
     approx_sync: true
     approx_sync_max_interval: 0.05
     queue_size: 30
