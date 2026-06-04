@@ -131,9 +131,13 @@ rgbd_odometry:
     Odom/GuessMotion: "true"
 
     # Visual feature params untuk tracking antar frame
-    Vis/MaxFeatures: "600"
-    Vis/MinInliers: "5"
-    GFTT/MinDistance: "10"
+    # FIX: relax untuk area dgn pencahayaan tidak konsisten.
+    # MaxFeatures naik 600→800, MinInliers turun 5→3 (toleran area gelap),
+    # MinDistance turun 10→7 (pixel jarak antar fitur, lebih rapat = lebih
+    # banyak fitur kecil ter-detect saat area textureless).
+    Vis/MaxFeatures: "800"
+    Vis/MinInliers: "3"
+    GFTT/MinDistance: "7"
     GFTT/QualityLevel: "0.001"
 
     # Local map size (lebih besar = lebih robust tapi lebih CPU)

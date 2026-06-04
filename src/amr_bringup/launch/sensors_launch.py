@@ -79,6 +79,13 @@ def generate_launch_description():
             'temporal_filter.enable':  True,
             'spatial_filter.enable':   True,
             'decimation_filter.enable': False,
+            # FIX: exposure tuning untuk lab dgn pencahayaan tidak konsisten.
+            # Auto-exposure tetap aktif, tapi gain dinaikkan supaya area
+            # gelap masih punya cukup visual features untuk VIO tracking.
+            'rgb_camera.enable_auto_exposure':   True,
+            'depth_module.enable_auto_exposure': True,
+            'rgb_camera.gain':                   64,
+            'rgb_camera.exposure':               156,
         }],
         output='screen',
         condition=IfCondition(use_camera),
