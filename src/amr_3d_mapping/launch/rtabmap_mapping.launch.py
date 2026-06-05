@@ -204,9 +204,11 @@ def generate_launch_description():
                 'Mem/InitWMWithAllNodes': 'false',
                 'Mem/SaveDepth16Format': 'true',
                 'Mem/DepthAsMask': 'false',
-                'Mem/RehearsalSimilarity': '0.45',
+                'Mem/RehearsalSimilarity': '0.60',  # naik 0.45→0.60: lebih selektif keyframe
                 'Mem/STMSize': '30',
                 'Mem/UseOdomFeatures': 'false',
+                # Tolak node yang posenya tidak confident (anti scattered cloud)
+                'Odom/MaxVariance': '0.01',
                 # ---- Registration: Vis+ICP ----
                 'Reg/Strategy': '2',
                 'Reg/Force3DoF': 'true',
@@ -264,7 +266,7 @@ def generate_launch_description():
                 'cloud_min_depth': 0.3,
                 # Voxel grid filter: dedupe titik dalam voxel 3cm
                 # Mencegah cloud "meledak" jumlahnya saat akumulasi panjang
-                'cloud_voxel_size': 0.03,
+                'cloud_voxel_size': 0.05,            # naik 0.03→0.05: less noise, more stable
                 'cloud_output_voxelized': True,
                 # Noise filtering: buang titik isolated (statistical outlier removal)
                 # Radius 5cm, minimal 5 tetangga = denoise tanpa kehilangan detail

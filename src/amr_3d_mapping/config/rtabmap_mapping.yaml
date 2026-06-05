@@ -157,6 +157,11 @@ rgbd_odometry:
     # tanpa perlu user manual reset via rtabmap_viz menu
     Odom/ResetCountdown: "1"
 
+    # Tolak frame saat VIO tidak confident — KUNCI anti-scattered cloud
+    # MaxVariance: kalau pose uncertainty > nilai ini, frame DIBUANG dari cloud
+    # 0.01 = ketat (hanya frame dengan tracking sangat yakin yang masuk peta)
+    Odom/MaxVariance: "0.01"
+
     # Local map size (lebih besar = lebih robust tapi lebih CPU)
     OdomF2M/MaxSize: "1000"
 
