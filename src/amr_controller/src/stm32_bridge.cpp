@@ -1,6 +1,5 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
-#include "geometry_msgs/msg/twist.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include <fcntl.h>
 #include <termios.h>
@@ -9,8 +8,6 @@
 #include <cstdio>
 #include <string>
 #include <thread>
-#include <chrono>
-#include <atomic>
 
 // ============================================================
 //  AMR - STM32 Bridge Node
@@ -34,13 +31,9 @@
 #define MAX_PWM      4000             // Max PWM value for traction motors
 #define MAX_STEER    45
 #define STEER_TRIM   -5               // Max steering angle in degrees
-#define DEADMAN_BTN  5                // R1 on Rexus GX-300 (verified working)
+#define DEADMAN_BTN  5                // R1 button on PS4/PS5 DualShock Bluetooth joystick
 #define AXIS_VEL     1                // Left analog stick (up/down) -> velocity
 #define AXIS_STEER   3                // Right analog stick (left/right) -> steering
-#define SLOW_BTN     1                // Triangle on Rexus GX-300 (verified: buttons[1])
-#define SLOW_PERCENT 10               // 10% dari MAX_PWM saat mapping mode aktif
-// Deadman timeout: if no /cmd_vel received within this duration, send stop
-#define CMDVEL_TIMEOUT_MS  500
 // NOTE: Joystick is PS4/PS5 DualShock via Bluetooth (MAC 8C:41:F2:D6:9D:7F).
 // Verified Day 2: detected as "Wireless Controller" by Linux kernel.
 // Button/axis mapping is compatible with PS4 BT default layout.
@@ -48,8 +41,7 @@
 class STM32Bridge : public rclcpp::Node
 {
 public:
-  STM32Bridge() : Node("stm32_bridge"), serial_fd_(-1), running_(true),
-                  deadman_held_(false), slow_mode_(false), slow_btn_prev_(false)
+  STM32Bridge() : Node("stm32_bridge"), serial_fd_(-1), running_(true)
   {
     // Open serial port to STM32
     serial_fd_ = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_SYNC);
@@ -68,21 +60,8 @@ public:
       "/joy", 10,
       std::bind(&STM32Bridge::joy_callback, this, std::placeholders::_1));
 
-    // Subscribe to /cmd_vel for Nav2 autonomous commands
-    cmdvel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
-      "/cmd_vel", 10,
-      std::bind(&STM32Bridge::cmdvel_callback, this, std::placeholders::_1));
-
     // Publisher: encoder feedback -> /encoder topic
     encoder_pub_ = this->create_publisher<std_msgs::msg::Int32>("/encoder", 10);
-
-    // Deadman watchdog: fires every 100ms, sends stop if /cmd_vel is stale
-    last_cmdvel_time_ = this->now();
-    last_joy_time_ = this->now();
-    cmdvel_active_ = false;
-    watchdog_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(100),
-      std::bind(&STM32Bridge::watchdog_callback, this));
 
     // Start encoder reader thread (runs in parallel)
     if (serial_fd_ >= 0) {
@@ -95,10 +74,6 @@ public:
       "[INFO] Steering mode: Ackermann 2WS - front 2 wheels only");
     RCLCPP_INFO(this->get_logger(),
       "[INFO] Encoder feedback publishing to /encoder");
-    RCLCPP_INFO(this->get_logger(),
-      "[INFO] Deadman watchdog active: stop if /cmd_vel silent >%dms", CMDVEL_TIMEOUT_MS);
-    RCLCPP_INFO(this->get_logger(),
-      "[INFO] Triangle = toggle MAPPING SPEED (%d%% PWM, less motor noise)", SLOW_PERCENT);
   }
 
   ~STM32Bridge()
@@ -119,18 +94,10 @@ public:
 
 private:
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
-  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmdvel_sub_;
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr encoder_pub_;
-  rclcpp::TimerBase::SharedPtr watchdog_timer_;
   std::thread read_thread_;
   int serial_fd_;
   bool running_;
-  rclcpp::Time last_cmdvel_time_;
-  rclcpp::Time last_joy_time_;
-  std::atomic<bool> cmdvel_active_;
-  std::atomic<bool> deadman_held_;   // R1 held = true, released = STOP everything
-  bool slow_mode_;       // mapping speed mode (triangle toggle)
-  bool slow_btn_prev_;   // edge detection for triangle button
 
   // --------------------------------------------------
   // Joystick callback: reads /joy and sends to STM32
@@ -143,24 +110,9 @@ private:
       return;
     }
 
-    // Catat waktu terakhir joystick aktif — dipakai watchdog agar tidak override
-    last_joy_time_ = this->now();
-
-    // Triangle toggle: mapping speed mode (10% PWM)
-    bool slow_btn_now = (msg->buttons.size() > SLOW_BTN &&
-                         msg->buttons[SLOW_BTN] == 1);
-    if (slow_btn_now && !slow_btn_prev_) {
-      slow_mode_ = !slow_mode_;
-      RCLCPP_INFO(this->get_logger(),
-        "[SPEED] Mapping mode %s (%d%% PWM)",
-        slow_mode_ ? "ON" : "OFF", slow_mode_ ? SLOW_PERCENT : 100);
-    }
-    slow_btn_prev_ = slow_btn_now;
-
-    // Deadman switch: R1 MUST be held. Release = IMMEDIATE STOP for everything.
+    // Deadman switch: R1 must be held for robot to move (safety)
     bool deadman = (msg->buttons.size() > DEADMAN_BTN &&
                     msg->buttons[DEADMAN_BTN] == 1);
-    deadman_held_ = deadman;
     if (!deadman) {
       send_command(0, 0);
       return;
@@ -171,77 +123,17 @@ private:
     float steer_raw = (msg->axes.size() > AXIS_STEER)
                       ? msg->axes[AXIS_STEER] : 0.0f;
 
-    // Apply speed limit: slow_mode caps PWM to SLOW_PERCENT%
-    int max_pwm = slow_mode_ ? (MAX_PWM * SLOW_PERCENT / 100) : MAX_PWM;
-
     // Negate velocity: analog up (+1.0) = forward on hardware
-    int velocity = static_cast<int>(vel_raw * -max_pwm);
+    int velocity = static_cast<int>(vel_raw   * -MAX_PWM);
 
     // Negate steering: analog right (+1.0) = turn right on hardware
     int steering = static_cast<int>(steer_raw * -MAX_STEER) + STEER_TRIM;
 
     // Clamp values to valid range
-    velocity = std::max(-max_pwm,  std::min(max_pwm,  velocity));
+    velocity = std::max(-MAX_PWM,  std::min(MAX_PWM,  velocity));
     steering = std::max(-MAX_STEER, std::min(MAX_STEER, steering));
 
     send_command(velocity, steering);
-  }
-
-  // --------------------------------------------------
-  // /cmd_vel callback: Nav2 autonomous commands
-  // Converts Twist (m/s, rad/s) → PWM + steering angle
-  // --------------------------------------------------
-  void cmdvel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
-  {
-    if (serial_fd_ < 0) return;
-
-    // R1 not held → block ALL movement including Nav2
-    if (!deadman_held_) {
-      send_command(0, 0);
-      return;
-    }
-
-    last_cmdvel_time_ = this->now();
-    cmdvel_active_ = true;
-
-    // linear.x [-0.3..0.3 m/s] → PWM [-4000..4000]
-    // angular.z [-0.5..0.5 rad/s] → steering angle [-45..45 deg]
-    // Wheel base = 0.50m: steer = atan(L * omega / v) in degrees
-    float vx = msg->linear.x;
-    float wz = msg->angular.z;
-
-    int velocity = static_cast<int>(vx * (MAX_PWM / 0.3f));
-    velocity = std::max(-MAX_PWM, std::min(MAX_PWM, velocity));
-
-    // Derive steering from angular velocity. At low speed use direct mapping.
-    float steer_rad = (std::abs(vx) > 0.01f)
-                      ? std::atan2(0.50f * wz, std::abs(vx))
-                      : (wz * 1.0f);  // low-speed approximation
-    int steering = static_cast<int>(steer_rad * (180.0f / M_PI)) + STEER_TRIM;
-    steering = std::max(-MAX_STEER, std::min(MAX_STEER, steering));
-
-    send_command(velocity, steering);
-  }
-
-  // --------------------------------------------------
-  // Watchdog: fires every 100ms
-  // If /cmd_vel has not arrived in CMDVEL_TIMEOUT_MS → stop
-  // --------------------------------------------------
-  void watchdog_callback()
-  {
-    if (!cmdvel_active_) return;
-
-    // Joystick aktif dalam 1 detik terakhir → jangan override dengan stop
-    auto joy_elapsed_ms = (this->now() - last_joy_time_).nanoseconds() / 1e6;
-    if (joy_elapsed_ms < 1000.0) return;
-
-    auto elapsed_ms = (this->now() - last_cmdvel_time_).nanoseconds() / 1e6;
-    if (elapsed_ms > CMDVEL_TIMEOUT_MS) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-        "[WATCHDOG] /cmd_vel timeout (%.0f ms) — sending STOP to STM32", elapsed_ms);
-      send_command(0, 0);
-      cmdvel_active_ = false;
-    }
   }
 
   // --------------------------------------------------
