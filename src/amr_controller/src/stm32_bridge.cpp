@@ -34,7 +34,7 @@
 #define MAX_PWM      4000             // Max PWM value for traction motors
 #define MAX_STEER    45
 #define STEER_TRIM   -5               // Max steering angle in degrees
-#define DEADMAN_BTN  4                // R1 on Rexus GX-300 (verified: buttons[4])
+#define DEADMAN_BTN  5                // R1 on Rexus GX-300 (verified working)
 #define AXIS_VEL     1                // Left analog stick (up/down) -> velocity
 #define AXIS_STEER   3                // Right analog stick (left/right) -> steering
 #define SLOW_BTN     1                // Triangle on Rexus GX-300 (verified: buttons[1])
