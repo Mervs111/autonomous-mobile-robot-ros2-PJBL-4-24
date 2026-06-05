@@ -1,0 +1,124 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 1
+      Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Name: TF
+      Show Axes: false
+      Show Names: false
+    - Class: rviz_default_plugins/RobotModel
+      Enabled: true
+      Name: RobotModel
+      Robot Description: robot_description
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: Intensity
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: 3D Cloud Map
+      Point Size: 2
+      Size (m): 0.02
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /cloud_map
+      Use Fixed Frame: true
+      Value: true
+    - Alpha: 0.8
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: FlatColor
+      Enabled: true
+      Flat Color: 255; 0; 0
+      Name: Cloud Obstacles
+      Point Size: 3
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /cloud_obstacles
+      Value: true
+    - Alpha: 0.5
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: FlatColor
+      Enabled: true
+      Flat Color: 0; 200; 0
+      Name: Cloud Ground
+      Point Size: 2
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /cloud_ground
+      Value: true
+    - Alpha: 0.7
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Enabled: true
+      Name: Map 2D
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map
+      Value: true
+    - Class: rviz_default_plugins/LaserScan
+      Color: 0; 255; 0
+      Enabled: true
+      Name: LiDAR Scan
+      Size (m): 0.03
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /scan
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/Odometry
+      Enabled: true
+      Name: VIO Odometry
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /rtabmap/odom
+      Value: true
+  Global Options:
+    Background Color: 10; 10; 10
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 8
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0.5
+      Pitch: 0.6
+      Target Frame: base_link
+      Yaw: 3.14
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 900
+  Width: 1400

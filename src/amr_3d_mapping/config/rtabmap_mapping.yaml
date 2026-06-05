@@ -108,10 +108,19 @@ rtabmap:
     Mem/UseOdomFeatures: "false"
 
     # ---- Publishing ----
-    publish_cloud_map: false
+    publish_cloud_map: true           # AKTIF: akumulasi 3D point cloud koheren
     publish_cloud_obstacles: true
     publish_cloud_ground: true
-    publish_grid_map: true          # untuk Nav2 + Foxglove
+    publish_grid_map: true            # untuk Nav2 + Foxglove
+
+    # ---- 3D cloud density params ----
+    cloud_decimation: 2               # subsample depth (1=full, 2=half per axis)
+    cloud_max_depth: 4.0              # buang depth > 4m (noisy di D455)
+    cloud_min_depth: 0.3              # buang depth < 0.3m (sensor dead zone)
+    cloud_voxel_size: 0.03            # voxel dedupe 3cm (padat tapi tidak explode)
+    cloud_output_voxelized: true
+    cloud_noise_filtering_radius: 0.05
+    cloud_noise_filtering_min_neighbors: 5
 
 # =================================================================
 # rgbd_odometry node params (VIO: Visual-Inertial Odometry)

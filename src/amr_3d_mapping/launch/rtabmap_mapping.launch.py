@@ -247,10 +247,29 @@ def generate_launch_description():
                 # ---- Optimizer ----
                 'Optimizer/GravitySigma': '0.3',
                 # ---- Publishing ----
-                'publish_cloud_map': False,
+                # publish_cloud_map = TRUE: aktifkan akumulasi 3D point cloud
+                # dari depth image (output /cloud_map). Ini yang menampilkan
+                # dinding/lantai/plafon sebagai rekonstruksi 3D koheren.
+                'publish_cloud_map': True,
                 'publish_cloud_obstacles': True,
                 'publish_cloud_ground': True,
                 'publish_grid_map': True,
+                # ---- 3D cloud density (cloud_map publishing) ----
+                # cloud_decimation: subsample depth pixels (2 = setengah resolusi
+                # per sumbu = 1/4 pixel per frame). Lebih kecil = lebih padat
+                # tapi lebih berat CPU. 2 = balance bagus untuk NUC i7.
+                'cloud_decimation': 2,
+                # Batasi range untuk hilangkan noise depth jauh (D455 < 4m bagus)
+                'cloud_max_depth': 4.0,
+                'cloud_min_depth': 0.3,
+                # Voxel grid filter: dedupe titik dalam voxel 3cm
+                # Mencegah cloud "meledak" jumlahnya saat akumulasi panjang
+                'cloud_voxel_size': 0.03,
+                'cloud_output_voxelized': True,
+                # Noise filtering: buang titik isolated (statistical outlier removal)
+                # Radius 5cm, minimal 5 tetangga = denoise tanpa kehilangan detail
+                'cloud_noise_filtering_radius': 0.05,
+                'cloud_noise_filtering_min_neighbors': 5,
             },
         ],
         remappings=[
