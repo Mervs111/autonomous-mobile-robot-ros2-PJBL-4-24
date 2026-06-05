@@ -150,13 +150,38 @@ def generate_launch_description():
             config_path,
             {
                 'use_sim_time': LaunchConfiguration('use_sim_time'),
+                # ---- Koneksi & sync ----
                 'subscribe_rgbd': True,
                 'subscribe_imu': True,
                 'approx_sync': True,
                 'queue_size': 30,
+                # ---- Frames ----
                 'frame_id': 'base_link',
                 'odom_frame_id': 'odom',
                 'publish_tf': True,     # publish TF odom → base_link
+                # ---- VIO strategy ----
+                # FIX AUDIT: semua param VIO di-inline agar tidak bergantung
+                # pada YAML copy di install/ (yang tidak update jika tidak
+                # colcon build ulang dengan --symlink-install).
+                'Odom/Strategy': '0',          # Frame-to-Map (lebih robust)
+                'Odom/GuessMotion': 'true',    # IMU bantu prediksi motion
+                # ---- KUNCI anti-scattered cloud ----
+                # MaxVariance: frame dengan pose uncertainty > nilai ini DIBUANG
+                # FIX AUDIT: param ini harus di rgbd_odometry, BUKAN di rtabmap!
+                # rtabmap tidak mengenal param Odom/*, silently ignored di sana.
+                'Odom/MaxVariance': '0.01',    # tolak frame tidak confident
+                # ResetCountdown: setelah N frame lost, auto-reset tracking
+                'Odom/ResetCountdown': '1',    # langsung reset saat lost
+                # ---- Visual tracking features ----
+                'Vis/MaxFeatures': '1000',     # fitur lebih banyak di-track
+                'Vis/MinInliers': '2',         # toleran area textureless
+                'Vis/DepthAsMask': 'false',
+                'GFTT/MinDistance': '5',       # fitur lebih rapat
+                'GFTT/QualityLevel': '0.001',
+                # ---- Frame-to-Map local map ----
+                'OdomF2M/MaxSize': '1000',
+                # ---- Ground vehicle constraints ----
+                'Reg/Force3DoF': 'true',       # x, y, yaw only
             }
         ],
         remappings=[
@@ -204,11 +229,11 @@ def generate_launch_description():
                 'Mem/InitWMWithAllNodes': 'false',
                 'Mem/SaveDepth16Format': 'true',
                 'Mem/DepthAsMask': 'false',
-                'Mem/RehearsalSimilarity': '0.60',  # naik 0.45→0.60: lebih selektif keyframe
+                # FIX AUDIT: 0.60 terlalu selektif → banyak keyframe duplikat → memori bengkak.
+                # 0.45 = default yang balance antara deduplikasi dan retensi detail.
+                'Mem/RehearsalSimilarity': '0.45',
                 'Mem/STMSize': '30',
                 'Mem/UseOdomFeatures': 'false',
-                # Tolak node yang posenya tidak confident (anti scattered cloud)
-                'Odom/MaxVariance': '0.01',
                 # ---- Registration: Vis+ICP ----
                 'Reg/Strategy': '2',
                 'Reg/Force3DoF': 'true',
@@ -234,7 +259,9 @@ def generate_launch_description():
                 'Grid/MaxGroundHeight': '0.05',
                 'Grid/MinGroundHeight': '-0.05',
                 # ---- Loop closure ----
-                'Rtabmap/LoopThr': '0.15',        # naik 0.11→0.15: lebih mudah accept meski ada drift
+                # FIX AUDIT: comment salah sebelumnya — LoopThr lebih TINGGI = LEBIH SULIT accept.
+                # Turun ke 0.11 (default RTAB-Map) = lebih agresif loop closure = koreksi drift lebih baik.
+                'Rtabmap/LoopThr': '0.11',
                 'Rtabmap/DetectionRate': '1.0',
                 'Rtabmap/TimeThr': '700',
                 'RGBD/NeighborLinkRefining': 'true',
