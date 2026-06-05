@@ -49,7 +49,7 @@ class STM32Bridge : public rclcpp::Node
 {
 public:
   STM32Bridge() : Node("stm32_bridge"), serial_fd_(-1), running_(true),
-                  slow_mode_(false), slow_btn_prev_(false)
+                  deadman_held_(false), slow_mode_(false), slow_btn_prev_(false)
   {
     // Open serial port to STM32
     serial_fd_ = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_SYNC);
@@ -128,6 +128,7 @@ private:
   rclcpp::Time last_cmdvel_time_;
   rclcpp::Time last_joy_time_;
   std::atomic<bool> cmdvel_active_;
+  std::atomic<bool> deadman_held_;   // R1 held = true, released = STOP everything
   bool slow_mode_;       // mapping speed mode (triangle toggle)
   bool slow_btn_prev_;   // edge detection for triangle button
 
@@ -156,9 +157,10 @@ private:
     }
     slow_btn_prev_ = slow_btn_now;
 
-    // Deadman switch: R1 must be held for robot to move (safety)
+    // Deadman switch: R1 MUST be held. Release = IMMEDIATE STOP for everything.
     bool deadman = (msg->buttons.size() > DEADMAN_BTN &&
                     msg->buttons[DEADMAN_BTN] == 1);
+    deadman_held_ = deadman;
     if (!deadman) {
       send_command(0, 0);
       return;
@@ -192,6 +194,12 @@ private:
   void cmdvel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
   {
     if (serial_fd_ < 0) return;
+
+    // R1 not held → block ALL movement including Nav2
+    if (!deadman_held_) {
+      send_command(0, 0);
+      return;
+    }
 
     last_cmdvel_time_ = this->now();
     cmdvel_active_ = true;
