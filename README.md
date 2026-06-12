@@ -9,6 +9,59 @@
 
 ---
 
+## Akses NUC (Step-by-Step)
+
+Semua node ROS jalan di **NUC** (otak robot). Kamu mengaksesnya dari laptop.
+
+**Identitas NUC:**
+- Hostname: `itssurabaya-NUC13ANHi7`
+- User: `itssurabaya`
+
+### Metode 1 — NoMachine *(direkomendasikan — dapat desktop penuh)*
+
+Pakai ini kalau butuh GUI (RViz, rtabmap_viz, lihat peta, file manager).
+
+1. Buka aplikasi **NoMachine** di laptop.
+2. Masukkan **IP NUC** (cara cek IP di bawah) → port default `4000`.
+3. Login: user `itssurabaya` + password NUC.
+4. Muncul desktop Ubuntu NUC. Buka **Terminal** dari sini untuk menjalankan command.
+
+### Metode 2 — SSH *(terminal saja, lebih ringan)*
+
+```bash
+ssh itssurabaya@<IP_NUC>
+```
+
+### Cara cek IP NUC (kalau berubah)
+
+> ⚠️ IP LAN NUC **bisa berganti** tiap reconnect WiFi. Untuk lihat IP saat ini, jalankan **di NUC** (lewat NoMachine):
+
+```bash
+hostname -I                      # tampilkan semua IP (ambil yang 192.168.x.x / 10.x.x.x)
+# atau:
+ip addr show | grep "inet "
+```
+
+> **IP Tailscale permanen:** `100.85.144.92` — IP ini **tidak pernah berubah** walau pindah jaringan. Syaratnya laptop juga terpasang Tailscale & gabung tailnet yang sama (opsional, tidak wajib).
+
+### Setelah masuk NUC — WAJIB di SETIAP terminal baru
+
+```bash
+export ROS_DOMAIN_ID=42
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+cd ~/amr_starter && source install/setup.bash
+```
+
+> Lupa `ROS_DOMAIN_ID` / `RMW_IMPLEMENTATION` = topic **tidak terlihat antar terminal**. Ini penyebab "kok kosong / no data" yang paling sering.
+
+### Matikan robot (urutan benar)
+
+1. `Ctrl+C` di terminal RTAB-Map / mapping dulu → **tunggu** log `Saving database... done!` (jangan dipaksa, ini sedang menulis DB).
+2. `Ctrl+C` terminal sensor.
+3. Shutdown NUC: `sudo shutdown now`. Cabut/charge baterai.
+
+---
+
 ## Arsitektur Dual Workspace
 
 Proyek ini menggunakan **ROS 2 Overlay Pattern** untuk pisahkan paket stable vs paket aktif:
