@@ -4,7 +4,7 @@
 
 > Platform pembelajaran mobile robot 4WD-Ackermann untuk eksperimen autonomous navigation, SLAM, dan visual regression-based obstacle avoidance — dirancang untuk lingkungan **indoor** (lab/ruang kelas).
 
-**Author:** Muhammad Al Azhar Faradis (NRP 2040241017)
+**Author:** Mararevi Subagyo (2040241036) (Kelompok PJBL 4-24)
 **Institusi:** Sarjana Terapan Teknologi Rekayasa Otomasi — DTEO — Fakultas Vokasi — ITS Surabaya
 
 ---
