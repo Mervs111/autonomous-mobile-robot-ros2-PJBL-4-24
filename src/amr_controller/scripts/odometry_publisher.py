@@ -75,10 +75,11 @@ class OdometryPublisher(Node):
         self.declare_parameter('base_frame', 'base_footprint')
         self.declare_parameter('publish_tf', False)
         self.declare_parameter('encoder_format', 'auto')       # 'auto', 'delta', 'cumulative'
-        # KALIBRASI jarak: odom ternyata ~2x lebih besar dari fisik (F:1.0 -> ~50cm).
-        # dist_scale=0.5 mengoreksi. TUNABLE LIVE (tanpa rebuild):
-        #   ros2 param set /odometry_publisher dist_scale 0.5
-        self.declare_parameter('dist_scale', 0.5)
+        # KALIBRASI jarak (uji 15 data, regresi linier, R²=0.997, 14 Juni 2026):
+        # odom over-read 2.626x thd jarak fisik -> faktor koreksi = 1/2.626 = 0.3808.
+        #   real(cm) = 1.444 + 0.3808 * odom(cm)   (intercept ~0 -> skala murni 0.3808)
+        # TUNABLE LIVE (tanpa rebuild):  ros2 param set /odometry_publisher dist_scale 0.3808
+        self.declare_parameter('dist_scale', 0.3808)
 
         gp = self.get_parameter
         self.wheel_radius = gp('wheel_radius').value
