@@ -71,9 +71,11 @@ class LocalizationLogger(Node):
         self.t0 = time.time()
 
         # Subscriptions
+        # CATATAN: topik RTAB-Map di setup ini TANPA prefix /rtabmap
+        # (cek: ros2 topic list | grep pose). Jadi /localization_pose, /info.
         self.create_subscription(
             PoseWithCovarianceStamped,
-            '/rtabmap/localization_pose',
+            '/localization_pose',
             self.cb_loc, 10)
 
         self.create_subscription(
