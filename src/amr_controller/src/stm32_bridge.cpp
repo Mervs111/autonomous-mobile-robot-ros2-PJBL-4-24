@@ -63,6 +63,10 @@ public:
     this->declare_parameter("autonomous_enabled", false);
     this->declare_parameter("max_speed_mps", 1.0);
     this->declare_parameter("cmd_vel_timeout_ms", 500);
+    // SAFETY 21 Jun: rem otomatis kalau Nav2 nyasar (overshoot 1m+ malam 20 Jun).
+    // Kalau autonomous_active terus > N detik tanpa goal complete -> paksa stop
+    // dan autonomous_enabled di-set false. User wajib enable manual lagi.
+    this->declare_parameter("autonomous_max_runtime_s", 10.0);
 
     joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
       "/joy", 10,
@@ -110,6 +114,7 @@ private:
   rclcpp::TimerBase::SharedPtr watchdog_timer_;
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr encoder_pub_;
   rclcpp::Time last_cmd_vel_time_;
+  rclcpp::Time autonomous_started_;     // SAFETY 21 Jun: kapan autonomous mulai
   std::thread read_thread_;
   int serial_fd_;
   bool running_;
@@ -173,6 +178,13 @@ private:
     }
 
     last_cmd_vel_time_ = this->now();
+    // SAFETY 21 Jun: catat saat pertama kali autonomous mulai (untuk runtime cap)
+    if (!autonomous_active_) {
+      autonomous_started_ = this->now();
+      double max_rt = this->get_parameter("autonomous_max_runtime_s").as_double();
+      RCLCPP_INFO(this->get_logger(),
+        "[AUTO] Started — max runtime cap: %.1fs", max_rt);
+    }
     autonomous_active_ = true;
 
     double v = msg->linear.x;
@@ -200,6 +212,20 @@ private:
   void watchdog_check()
   {
     if (!autonomous_active_ || manual_override_) return;
+
+    // SAFETY 21 Jun: hard cap runtime. Mencegah Nav2 recovery (DriveOnHeading/spin)
+    // mendorong robot lari berkilometer kalau goal_checker tidak pernah trigger.
+    double max_rt = this->get_parameter("autonomous_max_runtime_s").as_double();
+    double elapsed_s = (this->now() - autonomous_started_).seconds();
+    if (elapsed_s > max_rt) {
+      autonomous_active_ = false;
+      send_command(0, STEER_TRIM);
+      this->set_parameter(rclcpp::Parameter("autonomous_enabled", false));
+      RCLCPP_WARN(this->get_logger(),
+        "[SAFETY] autonomous runtime %.1fs > cap %.1fs — STOP & autonomous_enabled=false. "
+        "Re-enable manually setelah verifikasi.", elapsed_s, max_rt);
+      return;
+    }
 
     int timeout_ms = this->get_parameter("cmd_vel_timeout_ms").as_int();
     auto elapsed_ms =

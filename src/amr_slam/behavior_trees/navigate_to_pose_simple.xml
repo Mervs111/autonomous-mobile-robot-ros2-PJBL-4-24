@@ -1,0 +1,29 @@
+<!--
+  navigate_to_pose_simple.xml
+  ============================
+  BT minimal TANPA recovery behavior (no spin, no DriveOnHeading backup, no wait).
+  Tujuan: kalau FollowPath fail, langsung ABORT bersih — motor stop.
+
+  Akar masalah malam 20 Juni: BT default punya RecoveryFallback yang panggil
+  backup/spin saat controller fail. Behavior itu kirim cmd_vel terus walau
+  goal udah aborted -> robot overshoot 7m+ keluar map.
+
+  Ini versi step-by-step: plan once, follow once, sampai goal_checker
+  trigger (xy_goal_tolerance=0.25m) atau controller error -> abort.
+
+  Cocok untuk demo "robot disuruh maju ke titik X dan berhenti".
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <PipelineSequence name="NavigateNoRecovery">
+      <RateController hz="1.0">
+        <ComputePathToPose goal="{goal}"
+                           path="{path}"
+                           planner_id="GridBased"/>
+      </RateController>
+      <FollowPath path="{path}"
+                  controller_id="FollowPath"
+                  goal_checker_id="general_goal_checker"/>
+    </PipelineSequence>
+  </BehaviorTree>
+</root>
