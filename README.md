@@ -62,6 +62,118 @@ cd ~/amr_starter && source install/setup.bash
 
 ---
 
+## 🚀 Demo Autonomous Step-by-Step (Per Terminal)
+
+> SOP demo Nav2 autonomous setelah patch 21 Juni 2026 (safety cap + BT minimal + reset odom). Detail lengkap: [HANDOVER_NAV2_AUTONOMOUS_21JUNI.md](docs/HANDOVER_NAV2_AUTONOMOUS_21JUNI.md).
+
+### ⚙️ ENV BLOCK — paste di TIAP terminal baru (paling atas)
+
+```bash
+export ROS_DOMAIN_ID=42
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+source /opt/ros/humble/setup.bash
+cd ~/amr_starter && source install/setup.bash
+```
+
+### 📥 SEKALI AJA — apply patch terbaru dari repo
+
+```bash
+cd ~/amr_starter
+
+curl -fsSL "https://raw.githubusercontent.com/Mervs111/autonomous-mobile-robot-ros2/main/src/amr_controller/src/stm32_bridge.cpp" -o src/amr_controller/src/stm32_bridge.cpp
+curl -fsSL "https://raw.githubusercontent.com/Mervs111/autonomous-mobile-robot-ros2/main/src/amr_slam/CMakeLists.txt" -o src/amr_slam/CMakeLists.txt
+curl -fsSL "https://raw.githubusercontent.com/Mervs111/autonomous-mobile-robot-ros2/main/src/amr_slam/config/nav2_params.yaml" -o src/amr_slam/config/nav2_params.yaml
+mkdir -p src/amr_slam/behavior_trees src/amr_slam/scripts
+curl -fsSL "https://raw.githubusercontent.com/Mervs111/autonomous-mobile-robot-ros2/main/src/amr_slam/behavior_trees/navigate_to_pose_simple.xml" -o src/amr_slam/behavior_trees/navigate_to_pose_simple.xml
+curl -fsSL "https://raw.githubusercontent.com/Mervs111/autonomous-mobile-robot-ros2/main/src/amr_slam/scripts/reset_odom.sh" -o src/amr_slam/scripts/reset_odom.sh
+curl -fsSL "https://raw.githubusercontent.com/Mervs111/autonomous-mobile-robot-ros2/main/src/amr_slam/scripts/demo_drive_forward.sh" -o src/amr_slam/scripts/demo_drive_forward.sh
+chmod +x src/amr_slam/scripts/*.sh
+
+colcon build --symlink-install --packages-select amr_controller amr_slam
+source install/setup.bash
+```
+
+### 🖥️ TERMINAL 1 — Sensor (kamera + LiDAR + odom + STM32 bridge + joystick)
+
+```bash
+# (env block dulu)
+ros2 launch amr_bringup amr_full.launch.py use_slam:=false use_nav2:=false use_rtabmap:=false use_vr:=false use_failover:=false
+```
+✅ Tunggu sampai muncul `RealSense Node Is Up!` + `RPLidar health status : OK`.
+
+### 🖥️ TERMINAL 2 — Localization (RTAB-Map load peta)
+
+```bash
+# (env block dulu)
+ros2 launch amr_3d_mapping rtabmap_localization.launch.py database_path:=$HOME/maps/lab_demo_20jun.db
+```
+✅ Tunggu sampai log berhenti teriak "Did not receive data" (artinya data sensor masuk).
+
+### 🖥️ TERMINAL 3 — Nav2
+
+```bash
+# (env block dulu)
+ros2 launch amr_slam nav2.launch.py
+```
+✅ Tunggu sampai muncul **`Managed nodes are active`** (tanpa error merah).
+Verifikasi BT minimal ke-load: log akan menampilkan path `navigate_to_pose_simple.xml`.
+
+### 🖥️ TERMINAL 4 — Plan A: Demo Nav2 Autonomous
+
+```bash
+# (env block dulu)
+
+# 1. RESET ODOM (WAJIB! kalau robot baru diangkat fisik, odom-nya geser jauh)
+ros2 service call /reset_odom std_srvs/srv/Empty
+
+# 2. Verifikasi odom 0,0:
+ros2 topic echo /odom --field pose.pose.position --once
+
+# 3. Buka gerbang autonomous:
+ros2 param set /stm32_bridge autonomous_enabled true
+
+# 4. Kirim goal 0.5m lurus depan robot (frame base_link):
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+  "{pose: {header: {frame_id: 'base_link'}, pose: {position: {x: 0.5, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}}"
+```
+🕹️ **R1 di tangan = rem darurat manual.**
+🛡️ **Safety cap 10 detik** — kalau Nav2 nyasar, bridge auto-stop + `autonomous_enabled` di-set false sendiri.
+
+### 🆘 TERMINAL 4 — Plan B: Fallback (cmd_vel direct, bypass Nav2)
+
+Pakai ini kalau Plan A masih nakal. **Bypass Nav2 total**, langsung command motor dengan jumlah pesan terbatas (auto-stop):
+
+```bash
+# (env block dulu)
+
+# 1. Buka gerbang
+ros2 param set /stm32_bridge autonomous_enabled true
+
+# 2. Maju 0.5m @ 0.2 m/s = 2.5 detik (25 pesan @ 10 Hz), auto-stop:
+ros2 topic pub --rate 10 --times 25 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.2}, angular: {z: 0.0}}"
+
+# 3. Tutup gerbang
+ros2 param set /stm32_bridge autonomous_enabled false
+```
+Robot maju **persis 2.5 detik** lalu berhenti. Predictable, anti-overshoot, demo otonom dasar yang valid.
+
+### 🛡️ Tiga Layer Safety (otomatis)
+
+| Layer | Mekanisme | Aksi saat trigger |
+|---|---|---|
+| 1. Joystick R1 | Manual override | Cmd_vel Nav2 diabaikan |
+| 2. Watchdog 500ms | Cmd_vel berhenti datang | Motor stop |
+| 3. Safety cap 10s | Autonomous lebih dari 10 detik | Stop + `autonomous_enabled=false` |
+
+### 🆘 Emergency Stop
+
+```bash
+ros2 param set /stm32_bridge autonomous_enabled false
+```
+Atau **lepas R1** (kalau lagi ditekan, lepasnya bikin watchdog stop juga).
+
+---
+
 ## Arsitektur Dual Workspace
 
 Proyek ini menggunakan **ROS 2 Overlay Pattern** untuk pisahkan paket stable vs paket aktif:
